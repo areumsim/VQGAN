@@ -4,19 +4,25 @@ VQGAN
 
 ### Conv(ResNet) AutoEncoder ###
 v1.  
-    - Conv
+- Conv
+
+<br>
 v2.
-    - Dataset : STL10
+- Dataset : STL10
 
+<br>
 v3.
-    1. pytorch lightning
-    https://lightning.ai/docs/pytorch/stable/starter/introduction.html
-    
-    2. Autoencoder / Encoder/ Decoder 분리
-    3. ResNet
-    
 
+- pytorch lightning (https://lightning.ai/docs/pytorch/stable/starter/introduction.html) 
+- Autoencoder / Encoder/ Decoder 분리
+- ResNet
+
+
+<br>
+
+---
 TODO : 
-1. loss 바꾸기 -> 
+- loss 바꾸기 -> 
+
 
 
