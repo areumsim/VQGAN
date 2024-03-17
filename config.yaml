@@ -1,0 +1,41 @@
+data :
+  # data_dir : "C:/Users/sar10/code/detr/cocodataset/"
+  data_dir : 'C:/Users/wolve/arsim/autoencoder/cocodatset/'
+  train_set : "train2017"   # "train2017"
+  # valid_set  : "val2017" 
+  image_width : 128
+  image_height : 128
+  n_class : 81   # 80 : class 개수 + 1 (no object, background)
+  # max_boxes : 100  # same as 'n_obj' / Maximum number of objects in an image (y)
+
+model_save_path: "C:/Users/wolve/arsim/autoencoder/model_save/"
+
+train_params:
+  batch_size : 16
+  learning_rate : 1.e-4
+  weight_decay : 1.e-4
+  num_epoch : 10000
+
+model_params : 
+
+# backbone_params:
+#     n_channel : 256
+
+# tf_model_params:
+#     # n_dim : 128
+#     d_model: 256   # model Dimension
+#     drpoout_p: 0.1  # dropout rate 
+#     n_obj : 100   # Maximum number of objects
+#     # max_len: 800   # Maximum length of input (one sentence)
+
+#     encoder_params:
+#       n_hidden: 2048
+#       n_head: 8
+#       n_iter: 5
+
+#     decoder_params:
+#       n_hidden: 2048
+#       n_head: 8
+#       n_iter: 5
+#       activation: "gelu"
+#       # x_shape: [1, 100, 256] # [batch, max of Obj cnt, d_model]
