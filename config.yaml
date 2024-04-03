@@ -11,12 +11,14 @@ data :
 model_save_path: "C:/Users/wolve/arsim/autoencoder/model_save/"
 
 train_params:
-  batch_size : 16
+  batch_size : 48
   learning_rate : 1.e-4
-  weight_decay : 1.e-4
-  num_epoch : 10000
+  weight_decay : 1.e-6
+  num_epoch : 100000
 
 model_params : 
+  num_embeddings : 10 # k
+  embeddings_dim : 
 
 # backbone_params:
 #     n_channel : 256

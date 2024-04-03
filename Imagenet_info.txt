@@ -1,0 +1,37 @@
+
+Hugging Face/ imagenet_1k_resized_256
+
+https://huggingface.co/datasets/evanarlian/imagenet_1k_resized_256?row=2
+    ( origin : https://huggingface.co/datasets/imagenet-1k )
+
+Size of downloaded dataset files:   25.1 GB
+Size of the auto-converted Parquet files:   25.1 GB
+Number of rows: 1,431,167
+
+train	    validation	    test
+1281167 	50000	        100000
+
+
+The same ImageNet dataset but all the smaller side resized to 256.
+A lot of pretraining workflows contain resizing images to 256 and random cropping to 224x224, this is why 256 is chosen.
+The resized dataset can also be downloaded much faster and consume less space than the original one.
+See here for detailed
+
+###  Download 
+git lfs install
+git clone git@hf.co:datasets/evanarlian/imagenet_1k_resized_256 # example: git clone git@hf.co:datasets/allenai/c4
+
+####################
+dataset.set_transform(annot)
+dataset.set_format("torch")
+dataloader = torch.utils.data.DataLoader(dataset, batch_size=32)
+
+
+######################################################
+######################################################
+저장 폴더 : \ImageNet_256
+https://www.kaggle.com/datasets/dimensi0n/imagenet-256?resource=download
+Classified images dataset (ImageNet 256×256)
+-  540,000 images at 256×256 resolution grouped into 1,000
+
+Dataset size: 539826, Train size: 431,860, Valid size: 107,966

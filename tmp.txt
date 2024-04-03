@@ -1,0 +1,50 @@
+
+v1. 
+    - AutoEncoder (conv)
+    - dataset : coco
+v2.
+    - Dataset : cifar10 / STL10
+    - wandb
+
+v3.
+    1. pytorch lightning
+        https://lightning.ai/docs/pytorch/stable/starter/introduction.html  
+
+    2. conv -> ResNet
+    
+    3. Encoder/ Decoder 분리
+    
+4.
+    1. dataset : ImageNet 256×256
+        https://www.kaggle.com/datasets/dimensi0n/imagenet-256?resource=download
+        Dataset size: 539826, Train size: 431,860, Valid size: 107,966 / Class : 1,000
+
+    2. loss : vqgan loss
+    
+
+
+----
+
+TODO : 
+    - loss 바꾸기
+        : L1 + perceptual loss (vqgan)
+    - vq
+        : vqvae
+    - gan
+
+
+v3_ImageNet_vq_0    :  self.vq_coef = 0.1
+v3_ImageNet_vq_1    : self.vq_coef = 1
+v3_ImageNet_vq_2    : self.vq_coef = 1 + show에 update
+v3_ImageNet_vq_3    : seed고정 / k = 2048
+
+v3_ImageNet_vq_20   :   모델 update ( vqgan에서 att만 뺌 )
+
+v3_ImageNet_vq_25   :   downsampple -> conv, 
+                relu -> silu, 
+                input,output conv1x1, conv3x3에 bias 활성화, 
+                그리고 input conv들에 activation 추가
+
+v3_ImageNet_vq_26   :   압축률 1/16 -> 1/8
+
+#  self.mseLoss(z.detach(), z_q) + 0.25*self.mseLoss(z, z_q.detach())    
