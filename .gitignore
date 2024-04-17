@@ -1,0 +1,19 @@
+# data file
+CIFAR10/
+cocodatset/
+ImageNet_1k_256/
+ImageNet_256/
+STL10/
+
+
+# log
+lightning_logs/
+wandb/
+
+# model file / image
+model_save*/
+result_image*/
+*_result_*/
+*_model_*/
+
+# etc

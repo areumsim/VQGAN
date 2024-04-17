@@ -5,14 +5,12 @@ import torch
 import torch.nn as nn
 
 
-# 이미지의 공간적인 정보를 섞고, 채널을 증가 시켜서 -> 이미지 정보 확장
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1, bias=False):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=bias, dilation=dilation)
 
 
-# 채널수만 변경! (공간적인 정보는 그대로)
 def conv1x1(in_planes, out_planes, stride=1, bias=False):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=bias)

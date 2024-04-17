@@ -12,9 +12,8 @@ class  Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         # self.upsampling = nn.Upsample(scale_factor=2, mode="nearest")
-        
-        self.emb_dim = cfg['model_params']['embeddings_dim']    # 128
-        self.conv1 = conv1x1(self.emb_dim, self.emb_dim, bias=True) #stride=1
+
+        self.conv1 = conv1x1(128, 128, bias=True) #stride=1
 
         self.residual1 = Basicblock_Upsampling(128, 128, upsample=False)
         ### self.non_local = NonLocalBlock(256, 256, 256) # attention layer

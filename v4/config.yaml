@@ -1,12 +1,12 @@
 data :
-  ImageNet_1k_256:
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/ImageNet_1k_256/'
-  STL10L :
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/STL10/' 
-  ImageNet256: 
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/ImageNet_256/' 
-
-
+  # data_dir : "C:/Users/sar10/code/detr/cocodataset/"
+  data_dir : 'C:/Users/wolve/arsim/autoencoder/cocodatset/'
+  train_set : "train2017"   # "train2017"
+  # valid_set  : "val2017" 
+  image_width : 128
+  image_height : 128
+  n_class : 81   # 80 : class 개수 + 1 (no object, background)
+  # max_boxes : 100  # same as 'n_obj' / Maximum number of objects in an image (y)
 
 model_save_path: "C:/Users/wolve/arsim/autoencoder/model_save/"
 
@@ -17,11 +17,8 @@ train_params:
   num_epoch : 100000
 
 model_params : 
-  hidden : 6  # 96/16 =
-  num_embeddings : 2048 # k
-  embeddings_dim : 128  # vqgan's n_z
-  loss_vqgan_beta : 0.25
-  loss_vq_coef : 1.0
+  num_embeddings : 10 # k
+  embeddings_dim : 
 
 # backbone_params:
 #     n_channel : 256

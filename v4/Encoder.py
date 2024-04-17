@@ -7,6 +7,42 @@ from einops import rearrange
 
 from resnet import BasicBlock, conv1x1, conv3x3
 
+### 구현된 코드는 라이브러리 함수 썼는데, 아래는 직접 구현한 코드
+### https://github.com/Shubhamai/pytorch-vqgan/blob/main/vqgan/common.py
+# class Swish(nn.Module):
+#     """Swish activation function first introduced in the paper https://arxiv.org/abs/1710.05941v2
+#     It has shown to be working better in many datasets as compares to ReLU.
+#     """
+
+#     def __init__(self) -> None:
+#         super().__init__()
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+#         return x * torch.sigmoid(x)
+
+
+# class GroupNorm(nn.Module):
+#     """Group Normalization is a method which normalizes the activation of the layer for better results across any batch size.
+#     Note : Weight Standardization is also shown to given better results when added with group norm
+
+#     Args:
+#         in_channels (int): Number of channels in the input tensor.
+#     """
+
+#     def __init__(self, in_channels: int) -> None:
+#         super().__init__()
+
+#         # num_groups is according to the official code provided by the authors,
+#         # eps is for numerical stability
+#         # i think affine here is enabling learnable param for affine trasnform on calculated mean & standard deviation
+#         self.group_norm = nn.GroupNorm(
+#             num_groups=32, num_channels=in_channels, eps=1e-06, affine=True
+#         )
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         return self.group_norm(x)
+
 class Downsample(nn.Module):
     def __init__(self, in_channels, stride=2):
         super(Downsample, self).__init__()
@@ -48,15 +84,15 @@ class Encoder(nn.Module):
         # )
         
 
+
         self.residual5 = BasicBlock(128, 128, stride=1, downsample=None)  
         ### self.non_local = NonLocalBlock(256, 256, 256) # attention layer
         self.residual6 = BasicBlock(128, 128, stride=1, downsample=None)  
 
-        self.group_norm = nn.GroupNorm(32, 128) # num_groups(임의의 수-그룹수 , num_channels)
+        self.group_norm = nn.GroupNorm(32, 128) # num_groups(임의의 수) , num_channels
         self.swish = nn.SiLU()
-
-        self.emb_dim = cfg['model_params']['embeddings_dim'] # 128
-        self.conv2 = conv1x1(self.emb_dim, self.emb_dim, bias=True) # 채널수만! 
+        #TODO, config , self.emb_dim = 256
+        self.conv2 = conv1x1(128, 128, bias=True) # 채널수만! , self.emb_dim = 256
 
 
     def forward(self, x):
