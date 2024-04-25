@@ -1,27 +1,38 @@
 data :
   ImageNet_1k_256:
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/ImageNet_1k_256/'
+    data_dir: 'C:/Users/wolve/arsim/vqgan_git/VQGAN/ImageNet_1k_256/'
   STL10L :
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/STL10/' 
+    data_dir: 'C:/Users/wolve/arsim/vqgan_git/VQGAN/STL10/' 
   ImageNet256: 
-    data_dir: 'C:/Users/wolve/arsim/autoencoder/ImageNet_256/' 
-
+    data_dir: 'C:/Users/wolve/arsim/vqgan_git/VQGAN/ImageNet_256/' 
 
 
 model_save_path: "C:/Users/wolve/arsim/autoencoder/model_save/"
 
 train_params:
   batch_size : 48
-  learning_rate : 1.e-4
-  weight_decay : 1.e-6
+  learning_rate : 1.e-5
+  weight_decay : 1.e-5
+  betas : [0.9, 0.99]
   num_epoch : 100000
 
 model_params : 
   hidden : 6  # 96/16 =
   num_embeddings : 2048 # k
-  embeddings_dim : 128  # vqgan's n_z
-  loss_vqgan_beta : 0.25
+  embeddings_dim : 32  # vqgan's n_z
+  loss_vqgan_beta : 0.25  #β = 0.25
   loss_vq_coef : 1.0
+  perceptual_loss_factor : 0.1
+  rec_loss_factor : 0.1
+  rec_l2_factor : 1.0
+  disc_factor : 0.1
+
+  perceptual_model : "vgg"
+
+Discriminator_params :
+  image_channels : 3
+  num_filters_last : 96 # 64
+  n_layers : 4 # 3
 
 # backbone_params:
 #     n_channel : 256

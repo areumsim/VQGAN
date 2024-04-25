@@ -171,6 +171,16 @@ class Basicblock_Upsampling(nn.Module):
         return out
 
 
+class NonLocalBlock(nn.Module):
+    def __init__(self, in_channels ):
+        super(NonLocalBlock, self).__init__()
+        self.in_channels = in_channels
+
+    def forward(self, x):
+
+        return out
+
+
 if __name__ == "__main__":
     Basicblock_Upsampling_Net = Basicblock_Upsampling(3, 9)
     Basicblock_Upsampling_Net2 = Basicblock_Upsampling(3, 9, upsample=False)

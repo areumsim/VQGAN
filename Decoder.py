@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from resnet import Basicblock_Upsampling, conv1x1, conv3x3
+from common_block import Basicblock_Upsampling, conv1x1, conv3x3
 
 class  Decoder(nn.Module):
     def __init__(self, cfg):
@@ -14,7 +14,7 @@ class  Decoder(nn.Module):
         # self.upsampling = nn.Upsample(scale_factor=2, mode="nearest")
         
         self.emb_dim = cfg['model_params']['embeddings_dim']    # 128
-        self.conv1 = conv1x1(self.emb_dim, self.emb_dim, bias=True) #stride=1
+        self.conv1 = conv1x1(self.emb_dim, 128, bias=False) #stride=1
 
         self.residual1 = Basicblock_Upsampling(128, 128, upsample=False)
         ### self.non_local = NonLocalBlock(256, 256, 256) # attention layer
@@ -41,11 +41,11 @@ class  Decoder(nn.Module):
         self.swish = nn.SiLU()
         self.conv2 = conv1x1(16, 3, bias=True) # 굳이 공간 정보 안섞어도되서 3x3 안씀, 3x3은 패딩도 들어가고
         
-        self.tanh = nn.Tanh()
+        # self.tanh = nn.Tanh()
 
     def forward(self, x):
         
-        x = self.swish(self.conv1(x))
+        x = self.conv1(x)
         x = self.residual1(x)
         ### self.non_local
         x = self.residual2(x)
@@ -58,7 +58,7 @@ class  Decoder(nn.Module):
         x = self.group_norm(x)
         x = self.swish(x)
         x = self.conv2(x)
-        x = self.tanh(x)
+        x = F.tanh(x) ### -1 ~ 1 사이로 만들어줌 이 없어도되는거야 ?? 말이되나 
 
         return x
     

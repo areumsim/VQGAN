@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 from einops import rearrange
 
-from resnet import BasicBlock, conv1x1, conv3x3
+from common_block import BasicBlock, conv1x1, conv3x3, NonLocalBlock
 
 class Downsample(nn.Module):
     def __init__(self, in_channels, stride=2):
@@ -49,14 +49,14 @@ class Encoder(nn.Module):
         
 
         self.residual5 = BasicBlock(128, 128, stride=1, downsample=None)  
-        ### self.non_local = NonLocalBlock(256, 256, 256) # attention layer
+        # self.non_local = NonLocalBlock(256, 256, 256) # attention layer # TODO  
         self.residual6 = BasicBlock(128, 128, stride=1, downsample=None)  
 
         self.group_norm = nn.GroupNorm(32, 128) # num_groups(임의의 수-그룹수 , num_channels)
         self.swish = nn.SiLU()
 
         self.emb_dim = cfg['model_params']['embeddings_dim'] # 128
-        self.conv2 = conv1x1(self.emb_dim, self.emb_dim, bias=True) # 채널수만! 
+        self.conv2 = conv1x1(128, self.emb_dim, bias=False) # 채널수만! 
 
 
     def forward(self, x):
@@ -71,7 +71,7 @@ class Encoder(nn.Module):
 
         # mid_block
         x = self.residual5(x)
-        ### self.non_local
+        # x = self.non_local(x) # TODO
         x = self.residual6(x, last_layer=True)
 
         # output layer

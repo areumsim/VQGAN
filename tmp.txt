@@ -49,5 +49,10 @@ TODO :
         : vqvae
     - gan
 
+TODO : 
+    - attention module
+    - 오버피팅방지
+        + augmentation
+
 
 #  self.mseLoss(z.detach(), z_q) + 0.25*self.mseLoss(z, z_q.detach())    

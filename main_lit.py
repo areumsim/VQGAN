@@ -22,9 +22,13 @@ if __name__ == "__main__":
     #######   wandb   ######
     with open("prj_idx.txt", "r") as f:
         prj_idx = f.read()
-    prj_idx = int(prj_idx)
-    with open("prj_idx.txt", "w") as f:
-        f.write(str(prj_idx+1))
+    # with open("prj_idx.txt", "w") as f:
+    #     f.write(str(prj_idx+1))
+    
+    prj_idx = prj_idx.split("-")
+    prj_idx = prj_idx[0] + str(int(prj_idx[1])+1)
+    # with open("prj_idx.txt", "w") as f:
+    #     f.write(str(prj_idx))
 
     wandb_logger = WandbLogger(project="autoencoder-pytorch", name=f"v5_{prj_idx}")
     
@@ -46,6 +50,14 @@ if __name__ == "__main__":
     os.makedirs(model_save_path, exist_ok=True)
 
     checkpoint_callback = ModelCheckpoint(dirpath=model_save_path)
+
+    # callback for save model every 10000 steps donot overwrite
+    setp_checkpoint_callback = ModelCheckpoint(
+        dirpath=model_save_path,
+        filename='step_{step}',
+        every_n_train_steps=25_000,
+        save_top_k=-1,
+    )
     
     autoencoder = LitAutoEncoder(cfg)
 
@@ -57,12 +69,11 @@ if __name__ == "__main__":
                         log_every_n_steps=16, 
                         limit_val_batches=50,
                         logger=wandb_logger,
-                        callbacks=[checkpoint_callback],
+                        callbacks=[checkpoint_callback, setp_checkpoint_callback],
                         val_check_interval=1/5)
     
     trainer.fit(model=autoencoder,
                 train_dataloaders=train_loader,val_dataloaders=valid_loader)
-                # ckpt_path='v3_model_save\epoch=72369-step=2315841.ckpt')
     
 
     

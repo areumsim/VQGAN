@@ -1,3 +1,5 @@
+
+#%%
 import cv2
 
 import os
@@ -8,6 +10,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import datasets, transforms
+from torchvision.datasets.folder import DatasetFolder, default_loader
 
 from pycocotools.coco import COCO
 from PIL import Image
@@ -23,18 +26,71 @@ from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 
 from einops import rearrange
 
+
 def make_transforms():
     return transforms.Compose(
         [
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), # -1과 1 사이의 값으로 정규화
             transforms.Resize((96, 96)),
-            # transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)), # ImageNet
         ]
     )
 
+# 결과가 255 - 안으로
+def make_augmentation(height=96, width=96):
+    return iaa.Sequential(
+        [
+            iaa.Resize((0.4, 0.5)),
+            iaa.SomeOf(
+                1,
+                [
+                    iaa.AdditiveLaplaceNoise(scale=(0, 0.05 * 255)),
+                    iaa.Fliplr(0.5),
+                    iaa.Add(50, per_channel=True),
+                    iaa.Sharpen(alpha=0.5),
+                ],
+            ),
+            iaa.Resize({"height": height, "width": width}),
+        ]
+    )
 
-############ ImageNet_256 
+IMG_EXTENSIONS = (".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif", ".tiff", ".webp")
+
+class ImageNetAugmentation(DatasetFolder):
+    def __init__(
+        self,
+        root: str,
+        transform = None,
+        target_transform = None,
+        loader = default_loader,
+        is_valid_file= None,
+    ):
+        super().__init__(
+            root,
+            loader,
+            IMG_EXTENSIONS if is_valid_file is None else None,
+            transform=transform,
+            target_transform=target_transform,
+            is_valid_file=is_valid_file,
+        )
+        self.seq = make_augmentation()
+        self.train_indices = None
+
+    def __getitem__(self, index: int) :
+        path, target = self.samples[index]
+        
+        sample = self.loader(path)
+        if self.target_transform is not None:
+            sample = self.target_transform(sample)
+
+        if index in self.train_indices:
+            sample = self.seq(image= np.array(sample))
+
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample, target
+
+
 class ImageNet256(Dataset):
     def __init__(
         self, cfg, split_ratio=0.8, seed=42,
@@ -48,9 +104,13 @@ class ImageNet256(Dataset):
         self.transform = make_transforms()
 
         # 데이터셋 초기화
-        self.dataset = datasets.ImageFolder(root=img_dir, transform=transform)
+        # self.dataset = datasets.ImageFolder(root=self.data_dir, transform=self.transform)
+        self.dataset = ImageNetAugmentation(root=self.data_dir, transform=self.transform)
         self._create_data_loaders()
         
+        # # 데이터 augmentation
+        # self.seq = make_augmentation()
+
 
     def _create_data_loaders(self):
         torch.manual_seed(self.seed)  # For PyTorch
@@ -65,129 +125,30 @@ class ImageNet256(Dataset):
         # 분할에 사용할 generator 생성
         generator = torch.Generator().manual_seed(self.seed)  # 동일한 seed를 사용하여 generator 생성
         self.train_dataset, self.valid_dataset = random_split(self.dataset, [train_size, valid_size], generator=generator)
-
-        # #### indices 저장 (seed가 정해져 있지 않으면, indices를 저장해야함)
-        # # Assuming train_dataset and valid_dataset are already created
-        # train_indices = train.indices
-        # valid_indices = valid.indices
-
-        # # Save indices to disk
-        # torch.save(train_indices, './train_indices.pt')
-        # torch.save(valid_indices, './valid_indices.pt')
-
-        # ### Load indices from disk
-        # train_indices = torch.load('train_indices.pt')
-        # valid_indices = torch.load('valid_indices.pt')
-
-        # ### Recreate the datasets using Subset
-        # from torch.utils.data import Subset
-        # train_dataset = Subset(dataset, train_indices)
-        # valid_dataset = Subset(dataset, valid_indices)
-
+    
+        self.train_dataset.dataset.train_indices = self.train_dataset.indices
+        
     def get_datasets(self):
         return self.train_dataset, self.valid_dataset
-    
-    # def get_loaders(self):
-    #     train_loader = DataLoader(self.train_dataset, batch_size=cfg['train_params']['batch_size'], shuffle=True)
-    #     valid_loader = DataLoader(self.valid_dataset, batch_size=cfg['train_params']['batch_size'], shuffle=True)
-    #     return train_loader, valid_loader
 
-
-############ STL10 (96x96x3)
-class STL10(Dataset):
-    def __init__(self, cfg):
-        super(STL10, self).__init__()
-        self.data_dir = cfg['STL10']['data_dir']
-        self.transform = make_transforms()
-
-  
-    def get_datasets(self):
-        self.train = datasets.STL10(root=self.data_dir, split='train', download=True, transform=transform) #5000
-        self.test = datasets.STL10(root=self.data_dir, split='test', download=True, transform=transform)   #8000
-
-        return self.train, self.test
-    
-############  ImageNet_1k_256 (확인X, 느림, 256x256x3)
-class ImageNet_1k_256(Dataset):
-    def __init__(self, cfg):
-        super(ImageNet_1k_256, self).__init__()
-        self.data_dir = cfg['STL10']['data_dir']
-        self.transform = make_transforms()
-  
-    def get_datasets(self):
-        self.train = ImagetNetDataset(self.data_dir, 'train', transform=transform)
-        self.valid = ImagetNetDataset(self.data_dir, 'train', transform=transform)
-        return self.train, self.valid
-    
-
-class ImagetNetDataset(Dataset):
-    def __init__(
-        self, data_dir, split, transform=None, visualize=False, collate_fn=None
-    ):
-        super(ImagetNetDataset, self).__init__()
-        self.data_dir = data_dir
-        self.image_set = split
-
-        self.image_folrder = os.path.join(self.data_dir, self.image_set)
-        self.anno_file = os.path.join(
-            self.data_dir.replace("/", "\\"),
-            "annotations",
-            "instances_" + self.image_set + ".json",
-        )
-
+    # def __getitem__(self, idx):
+    #     image, label = self.dataset[idx]
         
-        self.transform = transform
-        self.visualize = visualize
+    #     if idx in self.train_indices:
+    #         image = np.array(image)
+    #         img_augmented = self.seq(image=image)
+    #         img_augmented = transforms.ToPILImage()(img_augmented)  # Convert back to PIL Image to use torchvision transforms
+    #         img_augmented = self.transform(img_augmented)
+        
+    #     return img_augmented, label
 
-        self.getMask = True
-
-        # self.seq = iaa.Sequential(
-        #     [
-        #         iaa.Resize((0.4, 0.5)),
-        #         iaa.SomeOf(
-        #             1,
-        #             [
-        #                 iaa.AdditiveLaplaceNoise(scale=(0, 0.05 * 255)),
-        #                 iaa.Fliplr(0.5),
-        #                 iaa.Add(50, per_channel=True),
-        #                 iaa.Sharpen(alpha=0.5),
-        #             ],
-        #         ),
-        #         iaa.Resize(
-        #             {"height": self.height, "width": self.width}
-        #         ),
-                
-        #     ]
-        # )
-
-    # def __len__(self):
-    #     return len(self.image_ids)
-
-    def load_image(self, image_idx):  #
-        image_info = self.coco.loadImgs(self.image_ids[image_idx])[0]
-        image_file_path = os.path.join(self.image_folrder, image_info["file_name"])
-        image = Image.open(image_file_path).convert("RGB")
-
-        image = np.array(image)
-        return image
-
-    def __getitem__(self, idx):  
-        image = self.load_image(idx)
-
-        # Augment images.
-        # image = self.seq(image=image)
-
-        if self.transform is not None:
-            image = self.transform(image)
-
-        return image
-
-
+#%%
 if __name__ == "__main__":
     from einops import rearrange, asnumpy
     import yaml
-        
+    
     def show_originalimage(image) :
+        image = torch.clamp(image, -1, 1)
         img = image.cpu().numpy().copy()
         img *= np.array([0.5, 0.5, 0.5])[:,None,None]
         img += np.array([0.5, 0.5, 0.5])[:,None,None]
@@ -198,29 +159,42 @@ if __name__ == "__main__":
         return img
 
 
-    transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)), # -1과 1 사이의 값으로 정규화
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]), # 정규화
-        ]
-    )
+    with open("config.yaml", "r") as stream:
+        cfg = yaml.safe_load(stream)
 
-    
-    img_dir = 'C:/Users/wolve/arsim/autoencoder/ImageNet_256/' 
-    train = ImagetNetDataset(img_dir, 'train', transform=transform)
-    valid = ImagetNetDataset(img_dir, 'valid', transform=transform)
-    test = ImagetNetDataset(img_dir, 'test', transform=transform)
-    
-    img = train[0] # torch.Size([3, 320, 320]) / (19, 5)
-    
-    ### Show image.###
-    img = show_originalimage(img)
+    imageNet256 = ImageNet256(cfg['data'])
+    train, valid = imageNet256.get_datasets()
 
-    cv2.imshow("", cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    
+    original_img = train[0][0] # (3, 256, 256)
+    original_img = valid[0][0] # (3, 256, 256)
 
-    # plt.imshow(img)
-    # plt.clf()
+    original_img = show_originalimage(original_img)
+    plt.imshow(original_img)
+    plt.title('Original Image')
+    plt.axis('off')  # 축 없애기
+
+    # train_loader = DataLoader(train, batch_size=cfg['train_params']['batch_size'])
+    
+    # augmented_images, _ = next(iter(train_loader))
+    # augmented_img = show_originalimage(augmented_images[0])
+    # plt.imshow(augmented_img)
+    # plt.axis('off')
+
+    ### Show original image.###
+    # idx = 2
+    # original_img = train[idx][0] # (3, 256, 256)
+    # original_img = show_originalimage(original_img)
+    
+    # augmented_img = show_originalimage(augmented_images[idx])
+
+    # plt.subplot(1, 2, 1)  # 1행 2열의 첫 번째 위치에 서브플롯 생성
+    # plt.imshow(original_img)
+    # plt.title('Original Image')
+    # plt.axis('off')  # 축 없애기
+
+    # # 증강된 이미지 출력
+    # plt.subplot(1, 2, 2)  # 1행 2열의 두 번째 위치에 서브플롯 생성
+    # plt.imshow(augmented_img)
+    # plt.title('Augmented Image')
+    # plt.axis('off')  # 축 없애기
+
