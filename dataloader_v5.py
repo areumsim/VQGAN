@@ -40,15 +40,33 @@ def make_transforms():
 def make_augmentation(height=96, width=96):
     return iaa.Sequential(
         [
-            iaa.Resize((0.4, 0.5)),
-            iaa.SomeOf(
-                1,
+            iaa.Sometimes(
+                0.6,
+                iaa.SomeOf(
+                2,
                 [
-                    iaa.AdditiveLaplaceNoise(scale=(0, 0.05 * 255)),
-                    iaa.Fliplr(0.5),
-                    iaa.Add(50, per_channel=True),
-                    iaa.Sharpen(alpha=0.5),
+                    iaa.Fliplr(0.5), # horizontal flips
+                    iaa.Crop(percent=(0, 0.1)), # random crops
+                    iaa.GaussianBlur(sigma=(0, 0.5)),
+                    iaa.LinearContrast((0.75, 1.5)),
+                    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+                    iaa.Multiply((0.8, 1.2), per_channel=0.2),
+                    iaa.Affine(
+                        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+                        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                        rotate=(-25, 25),
+                        shear=(-8, 8)
+                    ),
+                    iaa.Superpixels(
+                        p_replace=(0, 1.0),
+                        n_segments=(20, 200)
+                    ),
+                    iaa.MultiplyHue((0.5, 1.5)),
+                    iaa.ChangeColorTemperature((1100, 10000)),
+                    iaa.Cartoon(blur_ksize=3, segmentation_size=1.0, saturation=2.0, edge_prevalence=1.0),
+                    iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5)),
                 ],
+                ),
             ),
             iaa.Resize({"height": height, "width": width}),
         ]
@@ -83,6 +101,7 @@ class ImageNetAugmentation(DatasetFolder):
         if self.target_transform is not None:
             sample = self.target_transform(sample)
 
+        # 데이터 augmentation
         if index in self.train_indices:
             sample = self.seq(image= np.array(sample))
 
@@ -107,10 +126,6 @@ class ImageNet256(Dataset):
         # self.dataset = datasets.ImageFolder(root=self.data_dir, transform=self.transform)
         self.dataset = ImageNetAugmentation(root=self.data_dir, transform=self.transform)
         self._create_data_loaders()
-        
-        # # 데이터 augmentation
-        # self.seq = make_augmentation()
-
 
     def _create_data_loaders(self):
         torch.manual_seed(self.seed)  # For PyTorch
@@ -130,17 +145,6 @@ class ImageNet256(Dataset):
         
     def get_datasets(self):
         return self.train_dataset, self.valid_dataset
-
-    # def __getitem__(self, idx):
-    #     image, label = self.dataset[idx]
-        
-    #     if idx in self.train_indices:
-    #         image = np.array(image)
-    #         img_augmented = self.seq(image=image)
-    #         img_augmented = transforms.ToPILImage()(img_augmented)  # Convert back to PIL Image to use torchvision transforms
-    #         img_augmented = self.transform(img_augmented)
-        
-    #     return img_augmented, label
 
 #%%
 if __name__ == "__main__":
@@ -165,13 +169,16 @@ if __name__ == "__main__":
     imageNet256 = ImageNet256(cfg['data'])
     train, valid = imageNet256.get_datasets()
 
-    original_img = train[0][0] # (3, 256, 256)
-    original_img = valid[0][0] # (3, 256, 256)
 
-    original_img = show_originalimage(original_img)
-    plt.imshow(original_img)
-    plt.title('Original Image')
-    plt.axis('off')  # 축 없애기
+    for i in range(20):
+        original_img = train[i][0]
+        # original_img = train[0][0] # (3, 256, 256)
+        # original_img = valid[0][0] # (3, 256, 256)
+
+        original_img = show_originalimage(original_img)
+        plt.imshow(original_img)
+        plt.title('Original Image')
+        plt.axis('off')  # 축 없애기
 
     # train_loader = DataLoader(train, batch_size=cfg['train_params']['batch_size'])
     
