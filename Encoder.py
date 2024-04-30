@@ -49,7 +49,7 @@ class Encoder(nn.Module):
         
 
         self.residual5 = BasicBlock(128, 128, stride=1, downsample=None)  
-        # self.non_local = NonLocalBlock(256, 256, 256) # attention layer # TODO  
+        self.non_local = NonLocalBlock(256, 256) # attention layer # TODO  
         self.residual6 = BasicBlock(128, 128, stride=1, downsample=None)  
 
         self.group_norm = nn.GroupNorm(32, 128) # num_groups(임의의 수-그룹수 , num_channels)
@@ -71,7 +71,7 @@ class Encoder(nn.Module):
 
         # mid_block
         x = self.residual5(x)
-        # x = self.non_local(x) # TODO
+        x = self.non_local(x) # TODO input : ([1, 128, 32, 32]) output : ([1, 128, 32, 32]) 
         x = self.residual6(x, last_layer=True)
 
         # output layer
@@ -87,19 +87,17 @@ class Encoder(nn.Module):
         # x = self.block3(x)
         # x = self.block4(x, last_layer=True)
 
+if __name__ == "__main__":
+    import yaml
 
-# if __name__ == "__main__":
-#     import yaml
+    with open("C:/Users/wolve/arsim/vqgan_git/VQGAN/config.yaml", "r") as stream:
+        cfg = yaml.safe_load(stream)
 
-#     with open("C:/Users/wolve/arsim/autoencoder/config.yaml", "r") as stream:
-#         cfg = yaml.safe_load(stream)
-#     cfg = cfg["model_params"]
+    image = torch.randn(3, 256, 256)
+    # image = rearrange(image, "c W H -> 1 W H c")
+    image = rearrange(image, "c W H -> 1 c W H")
 
-#     image = torch.randn(3, 320, 320)
-#     # image = rearrange(image, "c W H -> 1 W H c")
-#     image = rearrange(image, "c W H -> 1 c W H")
-
-#     convAutoencoder = ConvAutoencoder(cfg)
-#     image_hat = convAutoencoder(image)
-#     print(image_hat)  # torch.Size([b, 3, 320, 320])
+    convAutoencoder = Encoder(cfg)
+    image_hat = convAutoencoder(image)
+    print(image_hat)  # torch.Size([b, 3, 320, 320])
 

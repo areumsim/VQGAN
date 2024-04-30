@@ -7,7 +7,7 @@ from einops import rearrange
 import torch.nn.functional as F
 
 
-class VectorQuantizer(nn.Module):
+class  VectorQuantizer(nn.Module):
     """
     Improved version over VectorQuantizer, can be used as a drop-in replacement. Mostly
     avoids costly matrix multiplications and allows for post-hoc remapping of indices.
@@ -74,33 +74,33 @@ class VectorQuantizer(nn.Module):
         z_flattened = rearrange(z, 'b h w c -> (b h w) c')
 
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
-        l2_norm_z = F.normalize(z_flattened, p=2, dim=1)
-        l2_norm_weight = F.normalize(self.embedding.weight, p=2, dim=1)
+        # l2_norm_z = F.normalize(z_flattened, p=2, dim=1)
+        # l2_norm_weight = F.normalize(self.embedding.weight, p=2, dim=1)
 
-        d = - torch.einsum('bd,dn->bn', l2_norm_z, rearrange(l2_norm_weight, 'n d -> d n'))
+        # d = - torch.einsum('bd,dn->bn', l2_norm_z, rearrange(l2_norm_weight, 'n d -> d n'))
 
-        # d = torch.sum(l2_norm_z ** 2, dim=1, keepdim=True) + \
-        #     torch.sum(l2_norm_weight**2, dim=1) - 2 * \
-        #     torch.einsum('bd,dn->bn', l2_norm_z, rearrange(l2_norm_weight, 'n d -> d n'))
+        d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
+            torch.sum(self.embedding.weight**2, dim=1) - 2 * \
+            torch.einsum('bd,dn->bn', z_flattened, rearrange(self.embedding.weight, 'n d -> d n'))
 
         min_encoding_indices = torch.argmin(d, dim=1)
         z_q = self.embedding(min_encoding_indices).view(z.shape)
         perplexity = None
         min_encodings = None
 
-        z_q_norm = F.normalize(z_q, p=2, dim=1)
-        z_norm = F.normalize(z, p=2, dim=1)
+        # z_q_norm = F.normalize(z_q, p=2, dim=1)
+        # z_norm = F.normalize(z, p=2, dim=1)
 
 
-        loss = self.beta * torch.mean((z_q_norm.detach()-z_norm)**2) + \
-                torch.mean((z_q_norm - z_norm.detach()) ** 2)
+        loss = self.beta * torch.mean((z_q.detach()-z)**2) + \
+                torch.mean((z_q - z.detach()) ** 2)
         # #  self.mseLoss(z.detach(), z_q) + 0.25*self.mseLoss(z, z_q.detach())    
 
         # preserve gradients
-        z_q_norm = z + (z_q_norm - z).detach()
+        z_q = z + (z_q - z).detach()
 
         # reshape back to match original input shape
-        z_q_norm = rearrange(z_q_norm, 'b h w c -> b c h w').contiguous()
+        z_q = rearrange(z_q, 'b h w c -> b c h w').contiguous()
 
         if self.remap is not None:
             min_encoding_indices = min_encoding_indices.reshape(z.shape[0],-1) # add batch axis
@@ -111,7 +111,7 @@ class VectorQuantizer(nn.Module):
             min_encoding_indices = min_encoding_indices.reshape(
                 z_q.shape[0], z_q.shape[2], z_q.shape[3])
 
-        return z_q_norm, loss, (perplexity, min_encodings, min_encoding_indices)
+        return z_q, loss, (perplexity, min_encodings, min_encoding_indices)
 
     def get_codebook_entry(self, indices, shape):
         # shape specifying (batch, height, width, channel)

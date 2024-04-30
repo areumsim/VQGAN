@@ -7,12 +7,12 @@ data :
     data_dir: 'C:/Users/wolve/arsim/vqgan_git/VQGAN/ImageNet_256/' 
 
 
-model_save_path: "C:/Users/wolve/arsim/autoencoder/model_save/"
+model_save_path: "E:/sim/model_save/"
 
 train_params:
   batch_size : 48
   learning_rate : 1.e-5
-  weight_decay : 1.e-5
+  weight_decay : 5.e-5
   betas : [0.9, 0.99]
   num_epoch : 100000
 

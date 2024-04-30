@@ -4,6 +4,8 @@
 import torch
 import torch.nn as nn
 
+from einops import rearrange, reduce, repeat
+from einops.layers.torch import Rearrange, Reduce
 
 # 이미지의 공간적인 정보를 섞고, 채널을 증가 시켜서 -> 이미지 정보 확장
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1, bias=False):
@@ -171,27 +173,147 @@ class Basicblock_Upsampling(nn.Module):
         return out
 
 
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels=128, patch_size=4, stride=2, emb_size=128, img_size=32):
+        super().__init__()
+
+        ### 이미지를 패치사이즈로 나누고 flatten : B*C*H*W -> B*N*(P*P*C) 
+        # 이미지에서는 그냥 안하고, conv 하고 .. 
+        # Stride 크기가 Kernel Size와 동일하면, 겹치지 않음 
+        self.projection = nn.Sequential(
+            nn.Conv2d(in_channels, emb_size, kernel_size=patch_size, stride=stride),
+            Rearrange('b e (h) (w) -> b (h w) e')
+        )
+
+        N  = int((img_size/(patch_size-stride)-1))**2   # 총 patch 수
+        # N = (patches.shape[1]) # (img_size//patch_size)**2 
+        self.positions = nn.Parameter(torch.randn(N, emb_size))
+    
+    def forward(self, x):
+        b,_,_,_ = x.shape
+        
+        x = self.projection(x)
+        
+        positions = repeat(self.positions, 'n d -> b n d', b=b)
+        x+= positions
+        return x
+
+
+### Batch matrix multiplication (input과 mat2에 모두 batch가 있을 때 사용 )
+# torch.bmm(input, mat2, *, deterministic=False, out=None) : [B, N, M] x [B, M, P] = [B, N, P]
+# torch.einsum('bnm, bmp->bnp', x, y) : [B, N, M] x [B, M, P] = [B, N, P]
+
+class MHAttention(nn.Module):
+    def __init__(self, d_model, n_hidden, n_head, **kwargs):
+        super(MHAttention, self).__init__()
+        self.n_hidden = n_hidden
+
+        # QW를 하려고 FC Layer , bias를 없애야함 wx+b 형태를 이용(b는 안씀)
+        self.FC_Q = nn.Linear(d_model, n_hidden * n_head, bias=False)
+        self.FC_K = nn.Linear(d_model, n_hidden * n_head, bias=False)
+        self.FC_V = nn.Linear(d_model, n_hidden * n_head, bias=False)
+
+        self.FC = nn.Linear((n_head * n_hidden), d_model, bias=False)
+
+    def forward(self, q, k, v, mask=None):
+        q = self.FC_Q(q)
+        k = self.FC_K(k)
+        v = self.FC_V(v)
+
+        #   b  len n_hidden*n_head
+        q = rearrange(q, "b l (c h) -> b l c h", c=self.n_hidden)
+        k = rearrange(k, "b l (c h) -> b l c h", c=self.n_hidden)
+        v = rearrange(v, "b l (c h) -> b l c h", c=self.n_hidden)
+
+        x = torch.einsum("b l d h, b j d h -> b h l j", q, k) / (self.n_hidden) ** 0.5
+
+        if mask is not None:
+            x = x + mask
+
+        x = torch.softmax(x, dim=-1)  # -1로 해야, 마지막 차원에서 합해서 1
+        x = torch.einsum("b h l j, b j d h -> b l d h", x, v)
+        x = rearrange(x, "b l d h -> b l (d h)")
+
+        x = self.FC(x)
+
+        return x
+
 class NonLocalBlock(nn.Module):
-    def __init__(self, in_channels ):
+    def __init__(self, in_channels, n_hidden, n_head=16 ):
         super(NonLocalBlock, self).__init__()
-        self.in_channels = in_channels
+        # self.in_channels = in_channels # d_model , 입출력차원
+        self.in_channels = in_channels # 입출력차원
+        self.model = 128 # 100
+        self.n_head = n_head
+
+        self.project = PatchEmbedding()
+        self.mtAttention = MHAttention(self.model, n_hidden, n_head)
+
+        self.FC = nn.Linear(self.model, self.in_channels, bias=False)
 
     def forward(self, x):
+        input = x
+        x = self.project(input)
 
-        return out
+        x = self.mtAttention(x, x, x)
+        # x = torch.concat(x, -1)
+        x = self.FC(x)
+    
+        return x
+
+
+class GroupNorm(nn.Module):
+    def __init__(self, channels):
+        super(GroupNorm, self).__init__()
+        self.gn = nn.GroupNorm(num_groups=32, num_channels=channels, eps=1e-6, affine=True)
+
+    def forward(self, x):
+        return self.gn(x)
+
+class NonLocalBlock_ref(nn.Module):
+    def __init__(self, channels):
+        super(NonLocalBlock_, self).__init__()
+        self.in_channels = channels
+
+        self.gn = GroupNorm(channels)
+        self.q = nn.Conv2d(channels, channels, 1, 1, 0)
+        self.k = nn.Conv2d(channels, channels, 1, 1, 0)
+        self.v = nn.Conv2d(channels, channels, 1, 1, 0)
+        self.proj_out = nn.Conv2d(channels, channels, 1, 1, 0)
+
+    def forward(self, x):
+        input = x
+        h_ = self.gn(input)
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
+
+        b, c, h, w = q.shape
+
+        q = q.reshape(b, c, h*w)
+        q = q.permute(0, 2, 1)
+        k = k.reshape(b, c, h*w)
+        v = v.reshape(b, c, h*w)
+
+        attn = torch.bmm(q, k)
+        attn = attn * (int(c)**(-0.5))
+        attn = torch.softmax(attn, dim=2)
+        attn = attn.permute(0, 2, 1)
+
+        A = torch.bmm(v, attn)
+        A = A.reshape(b, c, h, w)
+
+        return x + A
 
 
 if __name__ == "__main__":
-    Basicblock_Upsampling_Net = Basicblock_Upsampling(3, 9)
-    Basicblock_Upsampling_Net2 = Basicblock_Upsampling(3, 9, upsample=False)
+    NonLocalBlock_ = NonLocalBlock(128, 256) # attention layer    
+    # NonLocalBlock_ = NonLocalBlock_ref(128) # attention layer    
 
-
-    x = torch.randn(1, 3, 32, 32)
-    out = Basicblock_Upsampling_Net(x)
-    print(out.shape)  # torch.Size([1, 9, 64, 64])
-
-    out = Basicblock_Upsampling_Net2(x)
-    print(out.shape)  # torch.Size([1, 9, 32, 32])
+    x = torch.randn(1, 128, 32, 32)
+    out = NonLocalBlock_(x)
+    print(out.shape)  # torch.Size([1, 9, 64, 64]) ([1, 128, 32, 32]) 
 
     print("")
+
 

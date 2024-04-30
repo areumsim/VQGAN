@@ -28,10 +28,10 @@ class LitAutoEncoder(L.LightningModule):
         self.emb_dim = cfg['model_params']['embeddings_dim']    # vqgan : n_z
 
         self.vqgan = VQGAN(cfg)
-        self.ema = ExponentialMovingAverage(self.vqgan.vq_emb.parameters(), decay=0.995)
+        self.ema = ExponentialMovingAverage(self.vqgan.vq_emb.parameters(), decay=0.995)    # 안씀
         self.ema.to(self.device)
 
-        self.mseLoss = nn.MSELoss()
+        # self.mseLoss = nn.MSELoss() #
         self.vq_coef = cfg['model_params']['loss_vq_coef'] # 1
         
         self.perceptual_loss = lpips.LPIPS(net=cfg["model_params"]["perceptual_model"]).to(self.device)
@@ -42,13 +42,11 @@ class LitAutoEncoder(L.LightningModule):
         
         self.discriminator = Discriminator(cfg)
 
-        self.automatic_optimization = False
-        self.disc_on = 0.8
+        self.automatic_optimization = False # 안씀
+        self.disc_on = 0
 
     def forward(self, x):
         return self.vqgan(x)
-
-
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -113,24 +111,26 @@ class LitAutoEncoder(L.LightningModule):
         sch_g.step()
         sch_d.step()
 
+        ## 학습 초반에 discriminator 학습 X (generator만 학습)
         # current step
         n_step = self.global_step
         if n_step >= 150_001:
             self.disc_on = 0.8
 
-        
         return None
 
         
     def validation_step(self, batch, batch_idx) :
         x, _ = batch
-        with self.ema.average_parameters():
-            x_hat, vq_codebook_loss = self.vqgan(x)
+        #with self.ema.average_parameters():
+        x_hat, vq_codebook_loss = self.vqgan(x)
         self.val_output = [x, x_hat]
 
         ### VQ Loss  
         perceptual_loss = self.perceptual_loss(x, x_hat).mean()    # Perceptural loss로 변경!   #LPIPS
         rec_loss = F.l1_loss(x, x_hat)  # l1 loss
+        # if torch.isnan(rec_loss):
+        #     print('nan')
 
         self.log_dict({
                 "[ts] perceptual_loss" : perceptual_loss,
@@ -144,7 +144,6 @@ class LitAutoEncoder(L.LightningModule):
             self.lambda_ = 1
         
         return None
-
 
     def on_validation_epoch_end(self):
         img_true = show_originalimage(self.val_output[0][0])

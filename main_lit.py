@@ -26,9 +26,9 @@ if __name__ == "__main__":
     #     f.write(str(prj_idx+1))
     
     prj_idx = prj_idx.split("-")
-    prj_idx = prj_idx[0] + str(int(prj_idx[1])+1)
-    # with open("prj_idx.txt", "w") as f:
-    #     f.write(str(prj_idx))
+    prj_idx = prj_idx[0] +"-"+ str(int(prj_idx[1])+1)
+    with open("prj_idx.txt", "w") as f:
+        f.write(str(prj_idx))
 
     wandb_logger = WandbLogger(project="autoencoder-pytorch", name=f"v5_{prj_idx}")
     
@@ -40,8 +40,10 @@ if __name__ == "__main__":
     imageNet256 = ImageNet256(cfg['data'])
     train, valid = imageNet256.get_datasets()
 
-    train_loader = DataLoader(train, batch_size=cfg['train_params']['batch_size'], shuffle=True)
-    valid_loader = DataLoader(valid, batch_size=cfg['train_params']['batch_size'], shuffle=True)
+    train_loader = DataLoader(train, batch_size=cfg['train_params']['batch_size'],
+                               shuffle=True, pin_memory=True, num_workers=4,persistent_workers=True)
+    valid_loader = DataLoader(valid, batch_size=cfg['train_params']['batch_size'],
+                               shuffle=True, pin_memory=True, num_workers=2,persistent_workers=True)
     # image = train[0][0] # (3, 256, 256)
     # ### label = train[0][1]  # no_use
     ###########################
@@ -70,7 +72,7 @@ if __name__ == "__main__":
                         limit_val_batches=50,
                         logger=wandb_logger,
                         callbacks=[checkpoint_callback, setp_checkpoint_callback],
-                        val_check_interval=1/5)
+                        val_check_interval=1/10)
     
     trainer.fit(model=autoencoder,
                 train_dataloaders=train_loader,val_dataloaders=valid_loader)
